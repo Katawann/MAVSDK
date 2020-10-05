@@ -37,8 +37,8 @@ TEST(HardwareTest, CalibrationGyro)
         std::bind(&receive_calibration_callback, _1, _2, "gyro", std::ref(prom)));
 
     auto future_ret = fut.get();
-    EXPECT_EQ(future_ret, Calibration::Result::SUCCESS);
-    if (future_ret != Calibration::Result::SUCCESS) {
+    EXPECT_EQ(future_ret, Calibration::Result::Success);
+    if (future_ret != Calibration::Result::Success) {
         LogErr() << "Calibration error: " << Calibration::result_str(future_ret);
     }
 }
@@ -64,8 +64,8 @@ TEST(HardwareTest, CalibrationAccelerometer)
         std::bind(&receive_calibration_callback, _1, _2, "accelerometer", std::ref(prom)));
 
     auto future_ret = fut.get();
-    EXPECT_EQ(future_ret, Calibration::Result::SUCCESS);
-    if (future_ret != Calibration::Result::SUCCESS) {
+    EXPECT_EQ(future_ret, Calibration::Result::Success);
+    if (future_ret != Calibration::Result::Success) {
         LogErr() << "Calibration error: " << Calibration::result_str(future_ret);
     }
 }
@@ -91,8 +91,8 @@ TEST(HardwareTest, CalibrationMagnetometer)
         std::bind(&receive_calibration_callback, _1, _2, "magnetometer", std::ref(prom)));
 
     auto future_ret = fut.get();
-    EXPECT_EQ(future_ret, Calibration::Result::SUCCESS);
-    if (future_ret != Calibration::Result::SUCCESS) {
+    EXPECT_EQ(future_ret, Calibration::Result::Success);
+    if (future_ret != Calibration::Result::Success) {
         LogErr() << "Calibration error: " << Calibration::result_str(future_ret);
     }
 }
@@ -118,8 +118,8 @@ TEST(HardwareTest, CalibrationGimbalAccelerometer)
         std::bind(&receive_calibration_callback, _1, _2, "gimbal accelerometer", std::ref(prom)));
 
     auto future_ret = fut.get();
-    EXPECT_EQ(future_ret, Calibration::Result::SUCCESS);
-    if (future_ret != Calibration::Result::SUCCESS) {
+    EXPECT_EQ(future_ret, Calibration::Result::Success);
+    if (future_ret != Calibration::Result::Success) {
         LogErr() << "Calibration error: " << Calibration::result_str(future_ret);
     }
 }
@@ -143,7 +143,7 @@ TEST(HardwareTest, CalibrationGyroWithTelemetry)
     // Make sure telemetry reports gyro calibration as false.
     auto telemetry = std::make_shared<Telemetry>(system);
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    ASSERT_FALSE(telemetry->health().gyrometer_calibration_ok);
+    ASSERT_FALSE(telemetry->health().is_gyrometer_calibration_ok);
 
     // Do gyro calibration.
     auto calibration = std::make_shared<Calibration>(system);
@@ -155,14 +155,14 @@ TEST(HardwareTest, CalibrationGyroWithTelemetry)
         std::bind(&receive_calibration_callback, _1, _2, "gyro", std::ref(prom)));
 
     auto future_ret = fut.get();
-    EXPECT_EQ(future_ret, Calibration::Result::SUCCESS);
-    if (future_ret != Calibration::Result::SUCCESS) {
+    EXPECT_EQ(future_ret, Calibration::Result::Success);
+    if (future_ret != Calibration::Result::Success) {
         LogErr() << "Calibration error: " << Calibration::result_str(future_ret);
     }
 
     // Now, telemetry should be updated showing that the gyro calibration is ok.
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    EXPECT_TRUE(telemetry->health().gyrometer_calibration_ok);
+    EXPECT_TRUE(telemetry->health().is_gyrometer_calibration_ok);
 }
 
 TEST(HardwareTest, CalibrationGyroCancelled)
@@ -189,12 +189,12 @@ TEST(HardwareTest, CalibrationGyroCancelled)
     auto status = fut.wait_for(std::chrono::seconds(2));
     EXPECT_EQ(status, std::future_status::timeout);
 
-    calibration->cancel_calibration();
+    calibration->cancel();
 
     status = fut.wait_for(std::chrono::seconds(1));
     EXPECT_EQ(status, std::future_status::ready);
     auto future_ret = fut.get();
-    EXPECT_EQ(future_ret, Calibration::Result::CANCELLED);
+    EXPECT_EQ(future_ret, Calibration::Result::Cancelled);
 }
 
 void receive_calibration_callback(
@@ -203,9 +203,9 @@ void receive_calibration_callback(
     const std::string& calibration_type,
     std::promise<Calibration::Result>& prom)
 {
-    if (result == Calibration::Result::IN_PROGRESS) {
+    if (result == Calibration::Result::Next && progress_data.has_progress) {
         LogInfo() << calibration_type << " calibration in progress: " << progress_data.progress;
-    } else if (result == Calibration::Result::INSTRUCTION) {
+    } else if (result == Calibration::Result::Next && progress_data.has_status_text) {
         LogInfo() << calibration_type << " calibration instruction: " << progress_data.status_text;
     } else {
         prom.set_value(result);
